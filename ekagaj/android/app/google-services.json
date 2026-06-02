@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "368321225041",
+    "project_id": "ekagaj-95d3d",
+    "storage_bucket": "ekagaj-95d3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368321225041:android:50eff0bad36024bfeff370",
+        "android_client_info": {
+          "package_name": "com.ekagaj.ekagaj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHZCFnDepHWfnAFTPCl3OwwXU8pBfDTe8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
