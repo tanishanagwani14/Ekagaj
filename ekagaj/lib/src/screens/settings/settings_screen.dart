@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../routes/ek_routes.dart';
+import '../../services/app_session.dart';
+import '../../theme/app_preferences.dart';
 import '../../theme/ek_colors.dart';
+import '../../theme/ek_theme_context.dart';
 import '../../widgets/bottom_nav.dart';
 import '../../widgets/ek_card.dart';
 import '../../widgets/gradient_header.dart';
@@ -15,39 +18,31 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool notificationsEnabled = true;
-  bool darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final textSecondary = context.ekTextSecondary;
+
     final sections = <_Section>[
       _Section(
         title: 'General',
         items: [
-          _SettingItem.toggle(
+          _SettingItem(
             icon: Icons.notifications_rounded,
             label: 'Notifications',
             value: notificationsEnabled,
             onChanged: (v) => setState(() => notificationsEnabled = v),
           ),
-          _SettingItem.toggle(
+          _SettingItem(
             icon: Icons.dark_mode_rounded,
             label: 'Dark Mode',
-            value: darkModeEnabled,
-            onChanged: (v) => setState(() => darkModeEnabled = v),
+            value: isDark,
+            onChanged: (v) {
+              AppPreferences.themeMode.value = v ? ThemeMode.dark : ThemeMode.light;
+              setState(() {});
+            },
           ),
-        ],
-      ),
-      const _Section(
-        title: 'Privacy & Security',
-        items: [
-          _SettingItem.link(icon: Icons.lock_rounded, label: 'Privacy Settings'),
-        ],
-      ),
-      const _Section(
-        title: 'Support',
-        items: [
-          _SettingItem.link(icon: Icons.help_rounded, label: 'Help Center'),
-          _SettingItem.link(icon: Icons.info_rounded, label: 'About', value: 'Version 1.0.0'),
         ],
       ),
     ];
@@ -60,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               GradientHeader(
                 colors: const [EkColors.blue500, EkColors.purple600],
-                bottomRadius: 0,
+                bottomRadius: 40,
                 child: Row(
                   children: [
                     _IconHeaderButton(
@@ -71,7 +66,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Center(
                         child: Text(
                           'Settings',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ),
                     ),
@@ -79,34 +77,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              Transform.translate(
-                offset: const Offset(0, -24),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      for (final section in sections) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8, bottom: 10),
-                          child: Text(section.title, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: EkColors.gray500, fontWeight: FontWeight.w700)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final section in sections) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8, bottom: 10, top: 8),
+                        child: Text(
+                          section.title,
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: textSecondary,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
-                        EkCard(
-                          child: Column(
-                            children: [
-                              for (final item in section.items) ...[
-                                _SettingRow(item: item),
-                                if (item != section.items.last) Divider(color: EkColors.gray100, height: 1),
-                              ],
+                      ),
+                      EkCard(
+                        child: Column(
+                          children: [
+                            for (final item in section.items) ...[
+                              _SettingRow(item: item),
+                              if (item != section.items.last)
+                                Divider(color: context.ekNavBarBorder, height: 1),
                             ],
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                      ],
-                      const SizedBox(height: 120),
+                      ),
+                      const SizedBox(height: 20),
                     ],
-                  ),
+                    Text(
+                      'Account',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    EkCard(
+                      onTap: () => _confirmSignOut(context),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.logout_rounded, size: 20, color: Color(0xFFDC2626)),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Sign Out',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: const Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 120),
+                  ],
                 ),
               ),
             ],
@@ -118,6 +151,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will return to the login screen.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await AppSession.signOut();
+    }
   }
 }
 
@@ -151,8 +205,10 @@ class _SettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = context.ekTextPrimary;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -162,27 +218,22 @@ class _SettingRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: EkColors.gray100,
+                  color: context.ekMutedSurface,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(item.icon, size: 20, color: EkColors.gray600),
+                child: Icon(item.icon, size: 20, color: EkColors.purple600),
               ),
               const SizedBox(width: 12),
-              Text(item.label, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: EkColors.gray800, fontWeight: FontWeight.w700)),
+              Text(
+                item.label,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
             ],
           ),
-          if (item.type == _SettingType.toggle)
-            _GradientSwitch(value: item.toggleValue ?? false, onChanged: item.onChanged!)
-          else
-            Row(
-              children: [
-                if (item.linkValue != null) ...[
-                  Text(item.linkValue!, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: EkColors.gray500)),
-                  const SizedBox(width: 8),
-                ],
-                const Icon(Icons.chevron_right_rounded, color: EkColors.gray400),
-              ],
-            ),
+          _GradientSwitch(value: item.value, onChanged: item.onChanged),
         ],
       ),
     );
@@ -197,6 +248,8 @@ class _GradientSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trackOff = context.ekProgressTrack;
+
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -207,7 +260,7 @@ class _GradientSwitch extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           gradient: value ? const LinearGradient(colors: [EkColors.blue500, EkColors.purple600]) : null,
-          color: value ? null : const Color(0xFFD1D5DB),
+          color: value ? null : trackOff,
         ),
         child: Align(
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
@@ -229,36 +282,16 @@ class _Section {
   final List<_SettingItem> items;
 }
 
-enum _SettingType { toggle, link }
-
 class _SettingItem {
-  const _SettingItem._({
+  const _SettingItem({
     required this.icon,
     required this.label,
-    required this.type,
-    this.toggleValue,
-    this.linkValue,
-    this.onChanged,
+    required this.value,
+    required this.onChanged,
   });
-
-  const _SettingItem.toggle({
-    required IconData icon,
-    required String label,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) : this._(icon: icon, label: label, type: _SettingType.toggle, toggleValue: value, onChanged: onChanged);
-
-  const _SettingItem.link({
-    required IconData icon,
-    required String label,
-    String? value,
-  }) : this._(icon: icon, label: label, type: _SettingType.link, linkValue: value);
 
   final IconData icon;
   final String label;
-  final _SettingType type;
-  final bool? toggleValue;
-  final String? linkValue;
-  final ValueChanged<bool>? onChanged;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 }
-

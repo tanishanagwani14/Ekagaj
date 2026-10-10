@@ -6,56 +6,50 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function setupCompletePath() {
-      return /databases/$(database)/documents/_metadata/setup_complete;
-    }
-
-    function setupIsComplete() {
-      return exists(setupCompletePath());
-    }
-
-    function callerUserPath() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
-    }
-
-    function callerIsAdmin() {
-      return signedIn()
-        && exists(callerUserPath())
-        && get(callerUserPath()).data.role == 'admin';
-    }
-
-    // Public read so the login screen can offer "Create first administrator" only when needed.
-    match /_metadata/setup_complete {
-      allow read: if true;
-      allow create: if signedIn()
-        && !setupIsComplete()
-        && request.resource.data.completed == true
-        && request.resource.data.createdBy == request.auth.uid;
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn();
       allow update, delete: if false;
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow create: if (
-          signedIn()
-          && request.auth.uid == userId
-          && request.resource.data.role == 'admin'
-          && !setupIsComplete()
-        ) || (
-          callerIsAdmin() && request.auth.uid != userId
-        );
-      allow update: if callerIsAdmin();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
       allow delete: if false;
     }
 
-    match /usernames/{name} {
-      allow read: if callerIsAdmin();
-      allow create: if (
-          signedIn()
-          && request.resource.data.uid == request.auth.uid
-          && !setupIsComplete()
-        ) || callerIsAdmin();
-      allow update, delete: if callerIsAdmin();
+    match /chats/{chatId} {
+      allow read, create, update: if signedIn();
+
+      match /messages/{messageId} {
+        allow read, create: if signedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    match /attendance/{userId}/days/{dayId} {
+      allow read, write: if signedIn();
+    }
+
+    match /tasks/{taskId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /reminders/{reminderId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /followups/{followupId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
     }
 
     match /{document=**} {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ek_colors.dart';
+import '../theme/ek_theme_context.dart';
 
 class EkCard extends StatelessWidget {
   const EkCard({
@@ -20,17 +21,21 @@ class EkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
     final baseDecoration = decoration ??
         BoxDecoration(
-          color: Colors.white,
+          color: context.ekCardSurface,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
+          border: isDark ? Border.all(color: const Color(0xFF374151)) : null,
+          boxShadow: isDark
+              ? null
+              : const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
         );
 
     final effectiveDecoration = switch (variant) {
@@ -38,6 +43,7 @@ class EkCard extends StatelessWidget {
       EkCardVariant.gradient => baseDecoration.copyWith(
           gradient: EkColors.blueToPurple(),
           color: null,
+          border: null,
         ),
     };
 
@@ -57,4 +63,3 @@ class EkCard extends StatelessWidget {
 }
 
 enum EkCardVariant { defaultCard, gradient }
-

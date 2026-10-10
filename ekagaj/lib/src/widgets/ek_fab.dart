@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import '../theme/ek_colors.dart';
 
 class EkFab extends StatelessWidget {
-  const EkFab({super.key, this.onPressed});
+  const EkFab({super.key, this.onPressed, this.bottom});
 
   final VoidCallback? onPressed;
 
+  /// Distance from the bottom of the screen. Defaults above the bottom nav bar.
+  final double? bottom;
+
   @override
   Widget build(BuildContext context) {
+    final navClearance = MediaQuery.paddingOf(context).bottom + 112;
     return Positioned(
       right: 24,
-      bottom: 96,
+      bottom: bottom ?? navClearance,
       child: GestureDetector(
         onTap: onPressed,
         child: Container(

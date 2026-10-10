@@ -1,18 +1,26 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../routes/ek_routes.dart';
-import '../../services/user_repository.dart';
+import '../../services/app_session.dart';
 import '../../services/user_roles.dart';
 import '../../theme/ek_colors.dart';
+import '../../theme/ek_theme_context.dart';
+import '../../widgets/add_employee_dialog.dart';
 import '../../widgets/bottom_nav.dart';
 import '../../widgets/ek_badge.dart';
 import '../../widgets/ek_card.dart';
 import '../../widgets/gradient_header.dart';
+import '../settings/settings_detail_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _addingEmployee = false;
 
   static String _initials(String? name) {
     if (name == null || name.trim().isEmpty) return '?';
@@ -34,209 +42,261 @@ class ProfileScreen extends StatelessWidget {
       _Stat(label: 'Active Days', value: '28', icon: Icons.bar_chart_rounded),
     ];
 
-    return Scaffold(
-      body: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, authSnap) {
-          final firebaseUser = authSnap.data;
-          if (authSnap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (firebaseUser == null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed(EkRoutes.login);
-              }
-            });
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          }
+    return ValueListenableBuilder(
+      valueListenable: AppSession.profile,
+      builder: (context, profile, _) {
+        final title = profile?.displayName ?? 'User';
+        final subtitle = '@${profile?.username ?? 'user'}';
+        final department = (profile == null || profile.department.trim().isEmpty)
+            ? null
+            : profile.department.trim();
+        final isAdmin = UserRoles.isAdminRole(profile?.role);
 
-          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: UserRepository.userDoc(firebaseUser.uid).snapshots(),
-            builder: (context, userSnap) {
-              if (userSnap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final data = userSnap.data?.data();
-              final displayName = (data?['displayName'] as String?)?.trim();
-              final username = (data?['username'] as String?)?.trim();
-              final department = (data?['department'] as String?)?.trim();
-              final isAdmin = UserRoles.isAdminRole(data?['role']);
-              final title = (displayName != null && displayName.isNotEmpty) ? displayName : (username ?? 'Member');
-              final subtitle = username != null && username.isNotEmpty ? '@$username' : firebaseUser.uid;
+        return Scaffold(
+          body: _ProfileBody(
+            stats: stats,
+            title: title,
+            subtitle: subtitle,
+            department: department,
+            isAdmin: isAdmin,
+            initials: _initials(title),
+            addingEmployee: _addingEmployee,
+            onAddEmployee: isAdmin
+                ? () async {
+                    setState(() => _addingEmployee = true);
+                    try {
+                      await showAddEmployeeDialog(context);
+                    } finally {
+                      if (mounted) setState(() => _addingEmployee = false);
+                    }
+                  }
+                : null,
+          ),
+        );
+      },
+    );
+  }
+}
 
-              final menu = <_MenuItem>[
-                if (isAdmin)
-                  const _MenuItem(
-                    icon: Icons.person_rounded,
-                    label: 'Admin Panel',
-                    route: EkRoutes.admin,
-                    badge: 'Admin',
-                    iconColor: EkColors.purple600,
-                  ),
-                const _MenuItem(icon: Icons.settings_rounded, label: 'Settings', route: EkRoutes.settings, iconColor: EkColors.gray600),
-                const _MenuItem(icon: Icons.notifications_rounded, label: 'Notifications', route: EkRoutes.notifications, iconColor: EkColors.gray600),
-                const _MenuItem(icon: Icons.shield_rounded, label: 'Privacy & Security', route: EkRoutes.settings, iconColor: EkColors.gray600),
-                const _MenuItem(icon: Icons.help_rounded, label: 'Help & Support', route: EkRoutes.settings, iconColor: EkColors.gray600),
-              ];
+Future<void> _confirmSignOut(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Sign out?'),
+      content: const Text('You will return to the login screen.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+          child: const Text('Sign Out'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    await AppSession.signOut();
+  }
+}
 
-              return Stack(
+class _ProfileBody extends StatelessWidget {
+  const _ProfileBody({
+    required this.stats,
+    required this.title,
+    required this.subtitle,
+    required this.department,
+    required this.isAdmin,
+    required this.initials,
+    required this.addingEmployee,
+    this.onAddEmployee,
+  });
+
+  final List<_Stat> stats;
+  final String title;
+  final String subtitle;
+  final String? department;
+  final bool isAdmin;
+  final String initials;
+  final bool addingEmployee;
+  final VoidCallback? onAddEmployee;
+
+  @override
+  Widget build(BuildContext context) {
+    final textPrimary = context.ekTextPrimary;
+    final textSecondary = context.ekTextSecondary;
+
+    final menu = <_MenuItem>[
+      if (isAdmin) ...[
+        _MenuItem(
+          icon: Icons.person_add_alt_1_rounded,
+          label: addingEmployee ? 'Adding Employee...' : 'Add Employee',
+          iconColor: EkColors.blue500,
+          onTap: addingEmployee ? null : onAddEmployee,
+        ),
+        const _MenuItem(
+          icon: Icons.person_rounded,
+          label: 'Admin Panel',
+          route: EkRoutes.admin,
+          badge: 'Admin',
+          iconColor: EkColors.purple600,
+        ),
+      ],
+      const _MenuItem(icon: Icons.settings_rounded, label: 'Settings', route: EkRoutes.settings, iconColor: EkColors.gray600),
+      const _MenuItem(icon: Icons.notifications_rounded, label: 'Notifications', route: EkRoutes.notifications, iconColor: EkColors.gray600),
+      _MenuItem(
+        icon: Icons.shield_rounded,
+        label: 'Privacy & Security',
+        iconColor: EkColors.gray600,
+        onTap: () => SettingsDetailScreen.openPrivacy(context),
+      ),
+      _MenuItem(
+        icon: Icons.help_rounded,
+        label: 'Help & Support',
+        iconColor: EkColors.gray600,
+        onTap: () => SettingsDetailScreen.openHelp(context),
+      ),
+      _MenuItem(
+        icon: Icons.info_rounded,
+        label: 'About',
+        iconColor: EkColors.gray600,
+        onTap: () => SettingsDetailScreen.openAbout(context),
+      ),
+      _MenuItem(
+        icon: Icons.logout_rounded,
+        label: 'Sign Out',
+        iconColor: const Color(0xFFDC2626),
+        onTap: () => _confirmSignOut(context),
+      ),
+    ];
+
+    return Stack(
+      children: [
+        ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            GradientHeader(
+              colors: const [EkColors.blue500, EkColors.purple600],
+              bottomRadius: 40,
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 48),
+              child: Column(
                 children: [
-                  ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      GradientHeader(
-                        colors: const [EkColors.blue500, EkColors.purple600],
-                        bottomRadius: 0,
-                        padding: const EdgeInsets.fromLTRB(24, 56, 24, 48),
-                        child: Column(
-                          children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: _IconHeaderButton(
-                                icon: Icons.arrow_back_rounded,
-                                onTap: () => Navigator.of(context).pushReplacementNamed(EkRoutes.home),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              width: 96,
-                              height: 96,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.25),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 4),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _initials(title),
-                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              title,
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              subtitle,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
-                            ),
-                            if (department != null && department.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                department,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            EkBadge(
-                              isAdmin ? 'Admin' : 'Employee',
-                              background: const Color(0x33FFFFFF),
-                              foreground: Colors.white,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Transform.translate(
-                        offset: const Offset(0, -32),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  for (final s in stats) ...[
-                                    Expanded(child: _StatCard(stat: s)),
-                                    if (s != stats.last) const SizedBox(width: 12),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              ...menu.map((m) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: EkCard(
-                                      onTap: () => Navigator.of(context).pushNamed(m.route),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 40,
-                                                height: 40,
-                                                decoration: BoxDecoration(
-                                                  color: EkColors.gray100,
-                                                  borderRadius: BorderRadius.circular(14),
-                                                ),
-                                                child: Icon(m.icon, color: m.iconColor, size: 20),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                m.label,
-                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: EkColors.gray800, fontWeight: FontWeight.w700),
-                                              ),
-                                            ],
-                                          ),
-                                          Row(
-                                            children: [
-                                              if (m.badge != null) ...[
-                                                EkBadge(m.badge!, variant: EkBadgeVariant.info),
-                                                const SizedBox(width: 8),
-                                              ],
-                                              const Icon(Icons.chevron_right_rounded, color: EkColors.gray400),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )),
-                              EkCard(
-                                onTap: () async {
-                                  await FirebaseAuth.instance.signOut();
-                                  if (context.mounted) {
-                                    Navigator.of(context).pushReplacementNamed(EkRoutes.login);
-                                  }
-                                },
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFFFE4E6), width: 2),
-                                  boxShadow: const [
-                                    BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Log Out',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: const Color(0xFFDC2626), fontWeight: FontWeight.w800),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 120),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _IconHeaderButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: () => Navigator.of(context).pushReplacementNamed(EkRoutes.home),
+                    ),
                   ),
-                  const Align(
-                    alignment: Alignment.bottomCenter,
-                    child: BottomNav(active: BottomNavItem.profile),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 4),
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                  ),
+                  if (department != null && department!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      department!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  EkBadge(
+                    isAdmin ? 'Admin' : 'Employee',
+                    background: const Color(0x33FFFFFF),
+                    foreground: Colors.white,
                   ),
                 ],
-              );
-            },
-          );
-        },
-      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      for (final s in stats) ...[
+                        Expanded(child: _StatCard(stat: s)),
+                        if (s != stats.last) const SizedBox(width: 12),
+                      ],
+                    ],
+                  ),
+                    const SizedBox(height: 20),
+                    ...menu.map((m) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: EkCard(
+                            onTap: m.onTap ??
+                                (m.route != null
+                                    ? () => Navigator.of(context).pushNamed(m.route!)
+                                    : null),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: context.ekMutedSurface,
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(m.icon, color: m.iconColor, size: 20),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      m.label,
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            color: textPrimary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    if (m.badge != null) ...[
+                                      EkBadge(m.badge!, variant: EkBadgeVariant.info),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    Icon(Icons.chevron_right_rounded, color: textSecondary),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        )),
+                  const SizedBox(height: 120),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const Align(
+          alignment: Alignment.bottomCenter,
+          child: BottomNav(active: BottomNavItem.profile),
+        ),
+      ],
     );
   }
 }
@@ -276,9 +336,19 @@ class _StatCard extends StatelessWidget {
         children: [
           Icon(stat.icon, color: EkColors.purple600, size: 20),
           const SizedBox(height: 8),
-          Text(stat.value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: EkColors.gray800, fontWeight: FontWeight.w800)),
+          Text(
+            stat.value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: context.ekTextPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
           const SizedBox(height: 4),
-          Text(stat.label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: EkColors.gray500)),
+          Text(
+            stat.label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: context.ekTextSecondary),
+          ),
         ],
       ),
     );
@@ -297,14 +367,16 @@ class _MenuItem {
   const _MenuItem({
     required this.icon,
     required this.label,
-    required this.route,
     required this.iconColor,
+    this.route,
     this.badge,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final String route;
+  final String? route;
   final Color iconColor;
   final String? badge;
+  final VoidCallback? onTap;
 }

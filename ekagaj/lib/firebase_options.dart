@@ -54,11 +54,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAHZCFnDepHWfnAFTPCl3OwwXU8pBfDTe8',
-    appId: '1:368321225041:android:50eff0bad36024bfeff370',
-    messagingSenderId: '368321225041',
-    projectId: 'ekagaj-95d3d',
-    storageBucket: 'ekagaj-95d3d.firebasestorage.app',
+    apiKey: 'AIzaSyA-P_5GSM_TMPfWxWycmfXqrHrl0u49Jak',
+    appId: '1:392641930402:android:bda3f9e20dd5e09a23a3fb',
+    messagingSenderId: '392641930402',
+    projectId: 'ekagaj-a34db',
+    storageBucket: 'ekagaj-a34db.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -81,13 +81,13 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAW3d00tj7n2v2HXjJp02BY_1dzLVvoybo',
-    appId: '1:368321225041:web:c2e99a3fdeca2ba9eff370',
-    messagingSenderId: '368321225041',
-    projectId: 'ekagaj-95d3d',
-    authDomain: 'ekagaj-95d3d.firebaseapp.com',
-    storageBucket: 'ekagaj-95d3d.firebasestorage.app',
-    measurementId: 'G-0EJPJ7VDPL',
+    apiKey: 'AIzaSyBxrjPuK1vUK4xUI0TKmKqJpkyIRQmoW4E',
+    appId: '1:392641930402:web:bef55fca79f4399323a3fb',
+    messagingSenderId: '392641930402',
+    projectId: 'ekagaj-a34db',
+    authDomain: 'ekagaj-a34db.firebaseapp.com',
+    storageBucket: 'ekagaj-a34db.firebasestorage.app',
+    measurementId: 'G-R7VDNJ9GGZ',
   );
 
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../routes/ek_routes.dart';
 import '../theme/ek_colors.dart';
+import '../theme/ek_theme_context.dart';
 
 enum BottomNavItem { home, tasks, chat, attendance, profile }
 
@@ -17,8 +18,8 @@ class BottomNav extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: EkColors.gray200)),
+          color: context.ekNavBarSurface,
+          border: Border(top: BorderSide(color: context.ekNavBarBorder)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -80,8 +81,8 @@ class _Item extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isActive ? Colors.white : EkColors.gray400;
-    final labelColor = isActive ? EkColors.purple600 : EkColors.gray500;
+    final iconColor = isActive ? Colors.white : context.ekTextSecondary;
+    final labelColor = isActive ? EkColors.purple600 : context.ekTextSecondary;
 
     return GestureDetector(
       onTap: onTap,
@@ -116,4 +117,3 @@ class _Item extends StatelessWidget {
     );
   }
 }
-
